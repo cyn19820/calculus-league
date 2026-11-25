@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CALCULUS LEAGUE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@400;600;700;900&display=swap');
+
+:root {
+  --bg:#101525;
+  --panel:#1c2740;
+  --purple:#b69cff;
+  --yellow:#ffe18a;
+  --green:#9be7bd;
+  --white:#f5f2ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--white);
+  font-family:'Noto Sans KR',sans-serif;
+  min-height:100vh;
+  background-image:radial-gradient(#414b70 1px,transparent 1px);
+  background-size:22px 22px;
+}
+header{text-align:center;padding:38px 15px 20px}
+.logo{font:12px 'Press Start 2P';color:var(--yellow);line-height:2.2}
+h1{font:clamp(22px,5vw,38px) 'Press Start 2P';color:var(--purple);line-height:1.7}
+.subtitle{color:#c6cbe0;font-size:14px}
+.container{max-width:850px;margin:auto;padding:15px}
+.panel{
+  background:var(--panel);border:3px solid #64709b;
+  box-shadow:6px 6px 0 #080d19;
+  padding:24px;margin-bottom:22px;border-radius:5px;
+}
+h2{font-size:18px;color:var(--yellow);margin-top:0}
+input{
+  width:100%;padding:14px;background:#111a2d;
+  border:2px solid #68769d;color:white;font-size:16px;
+  border-radius:4px;margin:10px 0;
+}
+button{
+  border:0;background:var(--purple);color:#171329;
+  padding:14px 20px;font-weight:900;font-size:15px;
+  cursor:pointer;border-radius:4px;
+}
+button:hover{filter:brightness(1.15)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.primary{width:100%;margin-top:12px}
+.question{
+  padding:18px 0;border-bottom:1px solid #45516f;
+}
+.question:last-child{border:0}
+.qtitle{font-weight:700;margin-bottom:15px;line-height:1.7}
+.choice{
+  display:block;padding:12px;margin:8px 0;
+  background:#111a2d;border:1px solid #465577;
+  border-radius:4px;cursor:pointer;
+}
+.choice:has(input:checked){border-color:var(--purple);background:#343052}
+.choice input{width:auto;margin-right:10px}
+.hidden{display:none!important}
+#message{margin-top:15px;color:var(--green);font-weight:700}
+.rank-row{
+  display:flex;justify-content:space-between;
+  padding:13px;border-bottom:1px solid #45516f;
+}
+.rank-num{color:var(--yellow);font-weight:900}
+.score{color:var(--green);font-weight:900}
+footer{text-align:center;color:#8d98b8;padding:30px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">★ MATH CHALLENGE ★</div>
+  <h1>CALCULUS<br>LEAGUE</h1>
+  <div class="subtitle">실시간 수학 퀴즈 리그에 도전하라!</div>
+</header>
+
+<main class="container">
+  <section class="panel" id="start">
+    <h2>▶ PLAYER ENTRY</h2>
+    <p>나의 이름을 입력하고 리그에 참가하세요.</p>
+    <input id="playerName" maxlength="20" placeholder="플레이어 이름">
+    <button class="primary" onclick="startQuiz()">START GAME →</button>
+    <div id="startMessage"></div>
+  </section>
+
+  <section class="panel hidden" id="quizPanel">
+    <h2>▶ QUIZ STAGE</h2>
+    <p id="playerLabel"></p>
+    <div id="questions">문제를 불러오는 중...</div>
+    <button class="primary" id="submitBtn" onclick="submitQuiz()">답안 제출하기</button>
+    <div id="message"></div>
+  </section>
+
+  <section class="panel hidden" id="resultPanel">
+    <h2>★ RESULT ★</h2>
+    <div id="resultText"></div>
+    <p>전체 순위에서 나의 위치를 확인해 보세요!</p>
+  </section>
+
+  <section class="panel">
+    <h2>🏆 LIVE RANKING</h2>
+    <p style="color:#bfc7e1;font-size:13px">현재 참가자 순위 · 5초마다 갱신</p>
+    <div id="leaderboard">순위를 불러오는 중...</div>
+  </section>
+</main>
+
+<footer>CALCULUS LEAGUE · THINK DIFFERENTLY, SOLVE BRAVELY</footer>
+
+<script>
+let player = "";
+let questionData = [];
+
+async function startQuiz(){
+  const name = document.getElementById("playerName").value.trim();
+  const msg = document.getElementById("startMessage");
+
+  if(!name){
+    msg.textContent = "이름을 입력해 주세요!";
+    return;
+  }
+
+  player = name;
+  msg.textContent = "문제를 불러오는 중...";
+
+  try{
+    const response = await fetch("/api/questions");
+    if(!response.ok) throw new Error();
+    questionData = await response.json();
+
+    document.getElementById("playerLabel").textContent =
+      "PLAYER : " + player;
+
+    renderQuestions();
+    document.getElementById("start").classList.add("hidden");
+    document.getElementById("quizPanel").classList.remove("hidden");
+    msg.textContent = "";
+  }catch(e){
+    msg.textContent = "서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+  }
+}
+
+function renderQuestions(){
+  const area = document.getElementById("questions");
+  area.innerHTML = "";
+
+  questionData.forEach((q,index)=>{
+    const div = document.createElement("div");
+    div.className = "question";
+
+    let content = `<div class="qtitle">Q${index+1}. ${escapeHTML(q.question)}</div>`;
+
+    if(q.type === "multiple"){
+      content += q.choices.map(choice=>`
+        <label class="choice">
+          <input type="radio" name="q${q.id}" value="${escapeHTML(choice)}">
+          ${escapeHTML(choice)}
+        </label>
+      `).join("");
+    }else{
+      content += `<input type="text" id="q${q.id}" placeholder="정답을 입력하세요">`;
+    }
+
+    div.innerHTML = content;
+    area.appendChild(div);
+  });
+}
+
+function escapeHTML(value){
+  return String(value).replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+    '"':"&quot;","'":"&#39;"
+  })[c]);
+}
+
+async function submitQuiz(){
+  const answers = [];
+
+  for(const q of questionData){
+    let value = "";
+
+    if(q.type === "multiple"){
+      const selected = document.querySelector(
+        `input[name="q${q.id}"]:checked`
+      );
+      value = selected ? selected.value : "";
+    }else{
+      value = document.getElementById("q"+q.id).value.trim();
+    }
+
+    if(!value){
+      document.getElementById("message").textContent =
+        "모든 문제에 답을 입력해 주세요!";
+      return;
+    }
+
+    answers.push({id:q.id,value});
+  }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+
+  try{
+    const response = await fetch("/api/submit",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:player,answers})
+    });
+
+    const data = await response.json();
+    if(!response.ok) throw new Error(data.error || "제출 실패");
+
+    document.getElementById("quizPanel").classList.add("hidden");
+    document.getElementById("resultPanel").classList.remove("hidden");
+
+    document.getElementById("resultText").innerHTML =
+      `<h1 style="font-size:30px">${data.score} POINTS</h1>
+       <p>정답 : ${data.correctCount} / ${data.total}</p>
+       <p>참가해 주셔서 감사합니다!</p>`;
+
+    loadRanking();
+  }catch(e){
+    document.getElementById("message").textContent = e.message;
+    btn.disabled = false;
+  }
+}
+
+async function loadRanking(){
+  try{
+    const response = await fetch("/api/leaderboard");
+    if(!response.ok) throw new Error();
+    const data = await response.json();
+    const area = document.getElementById("leaderboard");
+
+    if(data.length === 0){
+      area.textContent = "아직 참가자가 없습니다. 첫 번째 주인공이 되어 보세요!";
+      return;
+    }
+
+    area.innerHTML = data.map((p,i)=>`
+      <div class="rank-row">
+        <span>
+          <span class="rank-num">${i+1}위</span>
+          ${escapeHTML(p.name)}
+        </span>
+        <span class="score">${p.score} P</span>
+      </div>
+    `).join("");
+  }catch(e){
+    document.getElementById("leaderboard").textContent =
+      "순위를 불러오지 못했습니다.";
+  }
+}
+
+loadRanking();
+setInterval(loadRanking,5000);
+</script>
+</body>
+</html>
