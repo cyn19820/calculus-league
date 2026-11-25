@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CALCULUS LEAGUE - TEACHER</title>
+<style>
+body {
+  background:#101525;
+  color:#f5f2ff;
+  font-family:Arial,sans-serif;
+  padding:30px 15px;
+}
+main {
+  max-width:550px;
+  margin:50px auto;
+  background:#1c2740;
+  border:2px solid #64709b;
+  padding:25px;
+}
+h1 {color:#b69cff;font-size:24px}
+input {
+  width:100%;
+  box-sizing:border-box;
+  padding:13px;
+  margin:10px 0;
+  background:#101525;
+  color:white;
+  border:1px solid #64709b;
+}
+button {
+  width:100%;
+  padding:14px;
+  background:#b69cff;
+  border:0;
+  font-weight:bold;
+  cursor:pointer;
+}
+#message {margin-top:20px;color:#9be7bd}
+</style>
+</head>
+<body>
+<main>
+  <h1>TEACHER CONTROL</h1>
+  <p>CALCULUS LEAGUE 교사 관리 화면</p>
+
+  <label for="password">교사 비밀번호</label>
+  <input type="password" id="password" placeholder="비밀번호 입력">
+
+  <button onclick="resetRanking()">순위 초기화</button>
+
+  <p id="message"></p>
+</main>
+
+<script>
+async function resetRanking() {
+  const password = document.getElementById("password").value;
+  const message = document.getElementById("message");
+
+  if (!password) {
+    message.textContent = "비밀번호를 입력해 주세요.";
+    return;
+  }
+
+  if (!confirm("정말 전체 순위를 초기화할까요?")) return;
+
+  try {
+    const response = await fetch("/api/teacher/reset", {
+      method: "POST",
+      headers: {
+        "x-teacher-password": password
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "초기화 실패");
+    }
+
+    message.textContent = "순위가 초기화되었습니다.";
+    document.getElementById("password").value = "";
+
+  } catch (error) {
+    message.textContent = error.message;
+  }
+}
+</script>
+</body>
+</html>
