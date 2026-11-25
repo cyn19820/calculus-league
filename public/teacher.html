@@ -6,67 +6,174 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CALCULUS LEAGUE - TEACHER</title>
 <style>
+:root {
+  --bg:#101525;
+  --panel:#1c2740;
+  --purple:#b69cff;
+  --yellow:#ffe18a;
+  --green:#9be7bd;
+  --white:#f5f2ff;
+}
+* { box-sizing:border-box; }
 body {
-  background:#101525;
-  color:#f5f2ff;
+  margin:0;
+  padding:25px 15px;
+  background:var(--bg);
+  color:var(--white);
   font-family:Arial,sans-serif;
-  padding:30px 15px;
 }
-main {
-  max-width:550px;
-  margin:50px auto;
-  background:#1c2740;
+main { max-width:750px; margin:35px auto; }
+.panel {
+  background:var(--panel);
   border:2px solid #64709b;
-  padding:25px;
+  padding:24px;
+  margin-bottom:20px;
+  border-radius:5px;
 }
-h1 {color:#b69cff;font-size:24px}
+h1 { color:var(--purple); font-size:25px; }
+h2 { color:var(--yellow); font-size:19px; }
 input {
   width:100%;
-  box-sizing:border-box;
-  padding:13px;
-  margin:10px 0;
-  background:#101525;
+  padding:14px;
+  margin:12px 0;
+  background:var(--bg);
   color:white;
   border:1px solid #64709b;
+  border-radius:4px;
 }
 button {
-  width:100%;
-  padding:14px;
-  background:#b69cff;
+  padding:13px 20px;
+  background:var(--purple);
+  color:#171329;
   border:0;
   font-weight:bold;
   cursor:pointer;
+  border-radius:4px;
 }
-#message {margin-top:20px;color:#9be7bd}
+button:disabled { opacity:.5; }
+.full { width:100%; }
+.danger { background:#ff9292; }
+.hidden { display:none!important; }
+#message { margin-top:15px; color:var(--green); }
+.stats {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.stat {
+  background:var(--bg);
+  padding:18px;
+  border-radius:5px;
+}
+.stat small { color:#bfc7e1; }
+.stat strong {
+  display:block;
+  color:var(--green);
+  font-size:27px;
+  margin-top:8px;
+}
+.rank-row {
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px 5px;
+  border-bottom:1px solid #45516f;
+}
+.rank-num { color:var(--yellow); font-weight:bold; }
+.score { color:var(--green); font-weight:bold; }
+.sub { color:#aeb8d4; font-size:12px; }
+@media(max-width:450px) {
+  .panel { padding:17px; }
+}
 </style>
 </head>
 <body>
+
 <main>
-  <h1>TEACHER CONTROL</h1>
-  <p>CALCULUS LEAGUE 교사 관리 화면</p>
+  <header>
+    <h1>★ CALCULUS LEAGUE</h1>
+    <p>TEACHER CONTROL PANEL</p>
+  </header>
 
-  <label for="password">교사 비밀번호</label>
-  <input type="password" id="password" placeholder="비밀번호 입력">
+  <!-- 로그인 화면 -->
+  <section class="panel" id="loginPanel">
+    <h2>▶ TEACHER LOGIN</h2>
+    <p>교사용 관리자 페이지입니다.</p>
 
-  <button onclick="resetRanking()">순위 초기화</button>
+    <form onsubmit="login(event)">
+      <input
+        type="password"
+        id="password"
+        placeholder="교사 비밀번호 입력"
+        required
+      >
+      <button class="full" type="submit" id="loginBtn">
+        LOGIN →
+      </button>
+    </form>
 
-  <p id="message"></p>
+    <p id="message"></p>
+  </section>
+
+  <!-- 관리자 화면 -->
+  <section id="dashboard" class="hidden">
+
+    <section class="panel">
+      <h2>▶ DASHBOARD</h2>
+      <p>CALCULUS LEAGUE 참가 현황</p>
+
+      <div class="stats">
+        <div class="stat">
+          <small>전체 참가자</small>
+          <strong id="totalPlayers">0명</strong>
+        </div>
+        <div class="stat">
+          <small>최고 점수</small>
+          <strong id="highestScore">0 P</strong>
+        </div>
+      </div>
+
+      <p class="sub" id="updateTime"></p>
+    </section>
+
+    <section class="panel">
+      <h2>🏆 LIVE RANKING</h2>
+      <div id="leaderboard">불러오는 중...</div>
+      <button class="full" onclick="loadRanking()">
+        새로고침 ↻
+      </button>
+    </section>
+
+    <section class="panel">
+      <h2>▶ GAME CONTROL</h2>
+      <p>전체 참가자의 게임 기록을 초기화합니다.</p>
+      <button class="full danger" onclick="resetRanking()">
+        전체 순위 초기화
+      </button>
+      <p class="sub">초기화한 기록은 복구할 수 없습니다.</p>
+    </section>
+
+    <button class="full" onclick="logout()">
+      로그아웃
+    </button>
+  </section>
 </main>
 
 <script>
-async function resetRanking() {
+let teacherPassword = "";
+
+async function login(event) {
+  event.preventDefault();
+
   const password = document.getElementById("password").value;
   const message = document.getElementById("message");
+  const button = document.getElementById("loginBtn");
 
-  if (!password) {
-    message.textContent = "비밀번호를 입력해 주세요.";
-    return;
-  }
-
-  if (!confirm("정말 전체 순위를 초기화할까요?")) return;
+  button.disabled = true;
+  message.textContent = "로그인 확인 중...";
 
   try {
-    const response = await fetch("/api/teacher/reset", {
+    const response = await fetch("/api/teacher/login", {
       method: "POST",
       headers: {
         "x-teacher-password": password
@@ -76,15 +183,123 @@ async function resetRanking() {
     const data = await response.json();
 
     if (!response.ok) {
+      throw new Error(data.error || "로그인 실패");
+    }
+
+    teacherPassword = password;
+
+    document.getElementById("loginPanel")
+      .classList.add("hidden");
+
+    document.getElementById("dashboard")
+      .classList.remove("hidden");
+
+    await loadRanking();
+
+  } catch(error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadRanking() {
+  const area = document.getElementById("leaderboard");
+  area.textContent = "불러오는 중...";
+
+  try {
+    const response = await fetch("/api/teacher/leaderboard", {
+      headers: {
+        "x-teacher-password": teacherPassword
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "조회 실패");
+    }
+
+    document.getElementById("totalPlayers").textContent =
+      data.length + "명";
+
+    document.getElementById("highestScore").textContent =
+      (data.length ? data[0].score : 0) + " P";
+
+    document.getElementById("updateTime").textContent =
+      "최근 업데이트: " + new Date().toLocaleTimeString("ko-KR");
+
+    if (data.length === 0) {
+      area.textContent = "아직 참가자가 없습니다.";
+      return;
+    }
+
+    area.innerHTML = data.map((p, i) => `
+      <div class="rank-row">
+        <div>
+          <span class="rank-num">${i+1}위</span>
+          ${escapeHTML(p.name)}
+          <div class="sub">
+            정답 ${p.correctCount} / 4
+          </div>
+        </div>
+        <span class="score">${p.score} P</span>
+      </div>
+    `).join("");
+
+  } catch(error) {
+    area.textContent = error.message;
+  }
+}
+
+async function resetRanking() {
+  if (!confirm("정말 전체 참가자 기록을 초기화할까요?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/teacher/reset", {
+      method: "POST",
+      headers: {
+        "x-teacher-password": teacherPassword
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
       throw new Error(data.error || "초기화 실패");
     }
 
-    message.textContent = "순위가 초기화되었습니다.";
-    document.getElementById("password").value = "";
+    alert("전체 순위가 초기화되었습니다.");
+    await loadRanking();
 
-  } catch (error) {
-    message.textContent = error.message;
+  } catch(error) {
+    alert(error.message);
   }
+}
+
+function logout() {
+  teacherPassword = "";
+
+  document.getElementById("password").value = "";
+  document.getElementById("message").textContent = "";
+
+  document.getElementById("dashboard")
+    .classList.add("hidden");
+
+  document.getElementById("loginPanel")
+    .classList.remove("hidden");
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  })[c]);
 }
 </script>
 </body>
