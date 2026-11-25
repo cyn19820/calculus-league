@@ -1,3 +1,4 @@
+
 import express from "express";
 
 const app = express();
@@ -41,6 +42,25 @@ const questions = [
 
 let leaderboard = [];
 
+function checkTeacher(req, res, next) {
+  const password = req.headers["x-teacher-password"];
+  const teacherPassword = process.env.TEACHER_PASSWORD;
+
+  if (!teacherPassword) {
+    return res.status(503).json({
+      error: "교사 비밀번호가 설정되지 않았습니다."
+    });
+  }
+
+  if (password !== teacherPassword) {
+    return res.status(401).json({
+      error: "교사 비밀번호가 올바르지 않습니다."
+    });
+  }
+
+  next();
+}
+
 app.get("/api/questions", (req, res) => {
   res.json(questions.map(({ answer, ...q }) => q));
 });
@@ -54,13 +74,21 @@ app.get("/api/leaderboard", (req, res) => {
 app.post("/api/submit", (req, res) => {
   const { name, answers } = req.body;
 
-  if (typeof name !== "string" || !name.trim() ||
-      name.trim().length > 20 || !Array.isArray(answers)) {
-    return res.status(400).json({ error: "입력 정보를 확인해 주세요." });
+  if (
+    typeof name !== "string" ||
+    !name.trim() ||
+    name.trim().length > 20 ||
+    !Array.isArray(answers)
+  ) {
+    return res.status(400).json({
+      error: "입력 정보를 확인해 주세요."
+    });
   }
 
   if (leaderboard.some(p => p.name === name.trim())) {
-    return res.status(409).json({ error: "이미 제출한 이름입니다." });
+    return res.status(409).json({
+      error: "이미 제출한 이름입니다."
+    });
   }
 
   let score = 0;
@@ -71,7 +99,9 @@ app.post("/api/submit", (req, res) => {
     if (!submitted || typeof submitted.value !== "string") return;
 
     const normalize = value =>
-      value.toLowerCase().replace(/\s+/g, "").replace(/²/g, "^2");
+      value.toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/²/g, "^2");
 
     if (normalize(submitted.value) === normalize(q.answer)) {
       score += q.points;
@@ -86,21 +116,27 @@ app.post("/api/submit", (req, res) => {
     submittedAt: Date.now()
   });
 
-  res.json({ score, correctCount, total: questions.length });
+  res.json({
+    score,
+    correctCount,
+    total: questions.length
+  });
 });
 
-app.post("/api/teacher/reset", (req, res) => {
-  const password = req.headers["x-teacher-password"];
-  const teacherPassword = process.env.TEACHER_PASSWORD;
+// 교사 로그인 확인
+app.post("/api/teacher/login", checkTeacher, (req, res) => {
+  res.json({ success: true });
+});
 
-  if (!teacherPassword) {
-    return res.status(503).json({ error: "교사 비밀번호가 설정되지 않았습니다." });
-  }
+// 교사용 참가자 목록
+app.get("/api/teacher/leaderboard", checkTeacher, (req, res) => {
+  res.json(
+    [...leaderboard].sort((a, b) => b.score - a.score)
+  );
+});
 
-  if (password !== teacherPassword) {
-    return res.status(401).json({ error: "비밀번호가 올바르지 않습니다." });
-  }
-
+// 교사용 순위 초기화
+app.post("/api/teacher/reset", checkTeacher, (req, res) => {
   leaderboard = [];
   res.json({ success: true });
 });
